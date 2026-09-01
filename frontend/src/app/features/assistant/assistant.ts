@@ -5,6 +5,7 @@ import { EdithService } from '../../core/services/edith.service';
 import { ConversationService } from '../../core/services/conversation.service';
 import { SettingsService } from '../../core/services/settings.service';
 import { OnlineStatusService } from '../../core/services/online-status.service';
+import { DebugLogService } from '../../core/services/debug-log.service';
 import { SettingsPanel } from '../settings/settings-panel';
 
 @Component({
@@ -21,8 +22,10 @@ export class Assistant {
   protected readonly conversation = inject(ConversationService);
   protected readonly settings = inject(SettingsService);
   protected readonly online = inject(OnlineStatusService);
+  protected readonly debug = inject(DebugLogService);
 
   protected readonly settingsOpen = signal(false);
+  protected readonly debugOpen = signal(false);
 
   protected readonly statusLabel = computed(() => {
     switch (this.voice.status()) {
@@ -67,7 +70,12 @@ export class Assistant {
     });
   }
 
+  protected onToggleDebug(): void {
+    this.debugOpen.update((v) => !v);
+  }
+
   protected async onMicTap(): Promise<void> {
+    this.debug.log(`Mic tapped (status=${this.voice.status()}, wake=${this.settings.settings().wakeWordEnabled}, continuous=${this.settings.settings().continuousMode})`);
     if (this.voice.status() === 'listening') {
       // Mid wake-word/continuous loop, a tap means "end the session"
       // (same as Stop) rather than just cutting off the current chunk.
@@ -116,9 +124,11 @@ export class Assistant {
     this.voice.reset();
     try {
       const blob = await this.voice.startRecording();
+      this.debug.log(`Recording captured: ${blob.size} bytes, type=${blob.type}`);
       await this.handleRecordedAudio(blob);
-    } catch {
+    } catch (err) {
       // error state already set by VoiceService; stop the continuous loop rather than retrying blindly
+      this.debug.log(`listenOnce() failed: ${this.errString(err)}`, 'error');
       this.continuousActive = false;
     }
   }
@@ -140,8 +150,9 @@ export class Assistant {
     let blob: Blob;
     try {
       blob = await this.voice.startRecording(4_000);
-    } catch {
+    } catch (err) {
       this.voice.setPassiveListening(false);
+      this.debug.log(`Wake-loop chunk recording failed: ${this.errString(err)}`, 'error');
       // A real failure (permission denied/unsupported) stops the loop and
       // surfaces the error VoiceService already set. A transient hiccup
       // (e.g. an empty short clip) just retries quietly.
@@ -155,13 +166,16 @@ export class Assistant {
       return;
     }
     this.voice.setPassiveListening(false);
+    this.debug.log(`Wake-loop chunk captured: ${blob.size} bytes`);
 
     let transcript = '';
     try {
       transcript = await this.edith.transcribe(blob);
-    } catch {
+      this.debug.log(`Wake-loop transcript: "${transcript}"`);
+    } catch (err) {
       // Network/API hiccup - stay in the loop rather than surfacing an
       // error banner for a background listen the user didn't explicitly ask for.
+      this.debug.log(`Wake-loop transcription failed (staying in loop): ${this.errString(err)}`, 'warn');
     }
 
     const local = this.edith.handleLocalCommand(transcript);
@@ -189,15 +203,19 @@ export class Assistant {
 
   private async handleRecordedAudio(blob: Blob): Promise<void> {
     this.voice.setStatus('processing');
+    this.debug.log('Transcribing...');
     let transcript: string;
     try {
       transcript = await this.edith.transcribe(blob);
+      this.debug.log(`Transcript: "${transcript}"`);
     } catch (err) {
+      this.debug.log(`Transcription failed: ${this.errString(err)}`, 'error');
       this.voice.setError(this.describeError(err, 'Could not transcribe your speech.'));
       return;
     }
 
     if (!transcript || !transcript.trim()) {
+      this.debug.log('Transcript was empty - no speech detected', 'warn');
       this.voice.setError('No speech was detected. Please try again.');
       return;
     }
@@ -207,6 +225,7 @@ export class Assistant {
     // Deterministic local commands (e.g. "Hi Edith") never hit the AI backend.
     const local = this.edith.handleLocalCommand(transcript);
     if (local.handled && local.response) {
+      this.debug.log(`Local command matched: "${local.response}"`);
       this.conversation.addAssistantTurn(local.response);
       await this.speak(local.response);
       return;
@@ -218,6 +237,7 @@ export class Assistant {
   private async askAssistant(message: string): Promise<void> {
     const history = this.conversation.historyForApi().slice(0, -1); // exclude the just-added user turn
     this.abortController = new AbortController();
+    this.debug.log(`Asking AI: "${message}" (streaming=${this.settings.settings().streamingEnabled})`);
 
     if (this.settings.settings().streamingEnabled) {
       const turnId = this.conversation.addPendingAssistantTurn();
@@ -228,7 +248,9 @@ export class Assistant {
           this.conversation.appendToTurn(turnId, delta);
         }
         this.conversation.completeTurn(turnId);
+        this.debug.log(`AI reply (streamed): "${full}"`);
       } catch (err) {
+        this.debug.log(`Chat stream failed: ${this.errString(err)}`, 'error');
         this.conversation.completeTurn(turnId, full || '(no response)');
         this.voice.setError(this.describeError(err, 'EDITH could not reach the AI backend.'));
         return;
@@ -240,9 +262,11 @@ export class Assistant {
 
     try {
       const { reply } = await this.edith.chat(message, history);
+      this.debug.log(`AI reply: "${reply}"`);
       this.conversation.addAssistantTurn(reply);
       await this.speak(reply);
     } catch (err) {
+      this.debug.log(`Chat failed: ${this.errString(err)}`, 'error');
       this.voice.setError(this.describeError(err, 'EDITH could not reach the AI backend.'));
     }
   }
@@ -250,6 +274,7 @@ export class Assistant {
   private async speak(text: string): Promise<void> {
     this.voice.setStatus('speaking');
     const s = this.settings.settings();
+    this.debug.log(`Speaking via ${s.ttsProvider}${s.openaiApiKey ? ' (direct key)' : ' (backend)'}...`);
     try {
       await this.audio.speak(text, {
         provider: s.ttsProvider,
@@ -257,8 +282,10 @@ export class Assistant {
         rate: s.ttsRate,
         apiKey: s.openaiApiKey,
       });
+      this.debug.log('Speech playback finished OK');
       this.voice.reset();
     } catch (err) {
+      this.debug.log(`Speech playback failed: ${this.errString(err)}`, 'error');
       this.voice.setError(this.describeError(err, 'Speech playback failed.'));
       this.continuousActive = false;
       return;
@@ -279,5 +306,14 @@ export class Assistant {
       return err.message || fallback;
     }
     return fallback;
+  }
+
+  private errString(err: unknown): string {
+    if (err instanceof Error) return `${err.name}: ${err.message}`;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
   }
 }

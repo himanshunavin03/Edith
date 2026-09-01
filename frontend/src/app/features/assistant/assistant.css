@@ -312,6 +312,75 @@
   cursor: pointer;
 }
 
+/* ---------- Debug log panel ---------- */
+.debug-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 60;
+}
+
+.debug-panel {
+  width: 100%;
+  max-width: 640px;
+  height: 70vh;
+  background: #0a0e18;
+  border: 1px solid #253048;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+
+.debug-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.debug-panel h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: #e6ecff;
+}
+
+.debug-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.debug-entries {
+  flex: 1;
+  overflow-y: auto;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.debug-entry {
+  margin: 0 0 4px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: #9fb0d9;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.debug-entry.warn {
+  color: #ffcf7a;
+  background: #2a220f;
+}
+
+.debug-entry.error {
+  color: #ff9d9d;
+  background: #2a1414;
+}
+
 /* ---------- Responsive ---------- */
 @media (min-width: 640px) {
   .orb {

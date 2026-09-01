@@ -6,6 +6,7 @@
     </div>
     <div class="topbar-actions">
       <span class="conn-dot" [class.offline]="!online.isOnline()" [title]="online.isOnline() ? 'Online' : 'Offline'"></span>
+      <button class="icon-btn" (click)="onToggleDebug()" aria-label="Debug log" title="Debug log">🐞</button>
       <button class="icon-btn" (click)="onClearConversation()" aria-label="Clear conversation" title="Clear conversation">🗑</button>
       <button class="icon-btn" (click)="onToggleSettings()" aria-label="Settings" title="Settings">⚙</button>
     </div>
@@ -77,3 +78,25 @@
 </div>
 
 <app-settings-panel [open]="settingsOpen()" (closed)="onToggleSettings()" />
+
+@if (debugOpen()) {
+  <div class="debug-backdrop" (click)="onToggleDebug()">
+    <div class="debug-panel" (click)="$event.stopPropagation()">
+      <header>
+        <h2>Debug log</h2>
+        <div class="debug-actions">
+          <button class="icon-btn" (click)="debug.clear()" aria-label="Clear log" title="Clear log">🗑</button>
+          <button class="icon-btn" (click)="onToggleDebug()" aria-label="Close debug log">✕</button>
+        </div>
+      </header>
+      <div class="debug-entries">
+        @if (debug.entries().length === 0) {
+          <p class="empty-hint">No log entries yet — tap the mic and try something, then come back here.</p>
+        }
+        @for (entry of debug.entries(); track $index) {
+          <p class="debug-entry" [class]="entry.level">{{ entry.message }}</p>
+        }
+      </div>
+    </div>
+  </div>
+}
