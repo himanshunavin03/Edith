@@ -1,0 +1,52 @@
+# Render Blueprint for EDITH.
+#
+# Deploys ONE web service: the Node/Express backend, which also serves the
+# built Angular frontend as static files from the same origin (see
+# backend/src/app.ts). This avoids running two services, wiring a separate
+# frontend URL, and any cross-origin (CORS) configuration in production.
+#
+# To deploy:
+#   1. Push this repo to GitHub/GitLab.
+#   2. In the Render dashboard: New -> Blueprint -> connect the repo.
+#      Render will read this file automatically.
+#   3. When prompted, set the OPENAI_API_KEY secret (marked sync: false
+#      below, so Render asks for it rather than committing it to git).
+#   4. Deploy. Render builds the frontend, then the backend, then starts
+#      the backend, which serves both.
+#
+# See README.md "Deploying to Render" for full details and troubleshooting.
+
+services:
+  - type: web
+    name: edith
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: >
+      npm install --prefix frontend &&
+      npm run build --prefix frontend &&
+      npm install --prefix backend &&
+      npm run build --prefix backend
+    startCommand: npm start --prefix backend
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: OPENAI_TTS_MODEL
+        value: gpt-4o-mini-tts
+      - key: OPENAI_TTS_VOICE
+        value: alloy
+      - key: OPENAI_TRANSCRIBE_MODEL
+        value: gpt-4o-mini-transcribe
+      # ALLOWED_ORIGIN is intentionally omitted: the backend also serves
+      # the frontend in production (same origin), and it automatically
+      # trusts Render's own auto-injected RENDER_EXTERNAL_URL for that origin
+      # (see backend/src/app.ts). Only set ALLOWED_ORIGIN if you point a
+      # frontend hosted somewhere else at this backend.
+      # Render substitutes its own PORT env var automatically; no PORT
+      # entry is needed here.

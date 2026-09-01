@@ -1,0 +1,100 @@
+@if (open()) {
+  <div class="backdrop" (click)="close()">
+    <div class="panel" (click)="$event.stopPropagation()">
+      <header>
+        <h2>Settings</h2>
+        <button class="icon-btn" (click)="close()" aria-label="Close settings">✕</button>
+      </header>
+
+      <section>
+        <label class="field-label" for="tts-provider">Voice output</label>
+        <select
+          id="tts-provider"
+          [ngModel]="settingsService.settings().ttsProvider"
+          (ngModelChange)="onProviderChange($event)"
+        >
+          <option value="browser">Browser speech (on-device, works offline)</option>
+          <option value="openai">OpenAI speech (server-generated, needs network)</option>
+        </select>
+      </section>
+
+      @if (settingsService.settings().ttsProvider === 'browser' && audio.voices().length > 0) {
+        <section>
+          <label class="field-label" for="voice-select">Browser voice</label>
+          <select
+            id="voice-select"
+            [ngModel]="settingsService.settings().ttsVoiceURI"
+            (ngModelChange)="onVoiceChange($event)"
+          >
+            <option [ngValue]="null">System default</option>
+            @for (v of audio.voices(); track v.voiceURI) {
+              <option [value]="v.voiceURI">{{ v.name }} ({{ v.lang }})</option>
+            }
+          </select>
+        </section>
+      }
+
+      <section>
+        <label class="field-label" for="rate">Speech rate: {{ settingsService.settings().ttsRate }}x</label>
+        <input
+          id="rate"
+          type="range"
+          min="0.5"
+          max="1.5"
+          step="0.1"
+          [ngModel]="settingsService.settings().ttsRate"
+          (ngModelChange)="onRateChange($event)"
+        />
+      </section>
+
+      <section class="toggle-row">
+        <label for="streaming">Stream AI responses</label>
+        <input
+          id="streaming"
+          type="checkbox"
+          [ngModel]="settingsService.settings().streamingEnabled"
+          (ngModelChange)="onStreamingToggle($event)"
+        />
+      </section>
+
+      <section class="toggle-row">
+        <label for="wakeword">Wake word ("Hi Edith")</label>
+        <input
+          id="wakeword"
+          type="checkbox"
+          [ngModel]="settingsService.settings().wakeWordEnabled"
+          (ngModelChange)="onWakeWordToggle($event)"
+        />
+      </section>
+      <p class="hint">
+        Tap the mic <strong>once</strong> to grant microphone access, then just
+        say <strong>"Hi Edith"</strong> any time — it works exactly like tapping
+        the button, and the session stays hands-free after that until you tap
+        Stop. Note: this listens in short background chunks and sends each one
+        to the backend to check for the wake phrase, so it uses more network/API
+        calls than tap-to-talk while it's on, and only works while this tab
+        stays open and in the foreground.
+      </p>
+
+      <section class="toggle-row">
+        <label for="continuous">Continuous conversation</label>
+        <input
+          id="continuous"
+          type="checkbox"
+          [ngModel]="settingsService.settings().continuousMode"
+          (ngModelChange)="onContinuousModeToggle($event)"
+        />
+      </section>
+      <p class="hint">
+        When on, EDITH automatically starts listening again after each spoken
+        reply — only your first question needs a tap. Tap Stop any time to end
+        the conversation. (Wake word mode already does this automatically once
+        it hears "Hi Edith", so you don't need both.)
+      </p>
+
+      <p class="hint">
+        "Hi Edith" always replies instantly and works offline — it never calls the AI backend.
+      </p>
+    </div>
+  </div>
+}

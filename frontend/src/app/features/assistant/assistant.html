@@ -1,0 +1,79 @@
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">E</span>
+      <span class="brand-name">EDITH</span>
+    </div>
+    <div class="topbar-actions">
+      <span class="conn-dot" [class.offline]="!online.isOnline()" [title]="online.isOnline() ? 'Online' : 'Offline'"></span>
+      <button class="icon-btn" (click)="onClearConversation()" aria-label="Clear conversation" title="Clear conversation">🗑</button>
+      <button class="icon-btn" (click)="onToggleSettings()" aria-label="Settings" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="orb-wrap">
+      <div class="orb" [attr.data-state]="voice.status()"></div>
+      <p class="status-label" [attr.data-state]="voice.status()">{{ statusLabel() }}</p>
+    </div>
+
+    <section class="transcript" aria-live="polite">
+      @if (conversation.isEmpty()) {
+        <div class="empty-hint">
+          <p>Tap the microphone and say <strong>"Hi Edith"</strong> to get started.</p>
+        </div>
+      }
+      @for (turn of conversation.conversationHistory(); track turn.id) {
+        <div class="turn" [class.user]="turn.role === 'user'" [class.assistant]="turn.role === 'assistant'">
+          <span class="turn-label">{{ turn.role === 'user' ? 'You' : 'EDITH' }}</span>
+          <p class="turn-text">{{ turn.text }}@if (turn.pending) {<span class="cursor">▍</span>}</p>
+        </div>
+      }
+      <div #scrollAnchor></div>
+    </section>
+
+    @if (voice.microphonePermission() === 'denied') {
+      <div class="banner error">
+        Microphone permission denied. On iPhone: Settings → Safari → Microphone → Allow, then reload this page.
+      </div>
+    } @else if (voice.microphonePermission() === 'unsupported') {
+      <div class="banner error">
+        This browser doesn't support microphone recording. Try Safari (iOS 14.3+) or Chrome.
+      </div>
+    } @else if (voice.status() === 'error' && voice.error()) {
+      <div class="banner error">{{ voice.error() }}</div>
+    }
+  </main>
+
+  <footer class="controls">
+    @if (voice.status() === 'listening' || voice.status() === 'processing' || voice.status() === 'speaking') {
+      <button class="stop-btn" (click)="onStop()">Stop</button>
+    }
+    <button
+      class="mic-btn"
+      [attr.data-state]="voice.status()"
+      (click)="onMicTap()"
+      [disabled]="voice.status() === 'processing'"
+      aria-label="Tap to talk to EDITH"
+    >
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" />
+        <path d="M19 11a7 7 0 0 1-14 0" />
+        <path d="M12 18v3" />
+      </svg>
+    </button>
+    <span class="mic-hint">
+      @if (voice.status() === 'listening') {
+        Tap to stop
+      } @else if (settings.settings().wakeWordEnabled) {
+        Tap once — then just say "Hi Edith"
+      } @else if (settings.settings().continuousMode) {
+        Tap once to start — EDITH keeps listening after that
+      } @else {
+        Tap to talk
+      }
+    </span>
+  </footer>
+</div>
+
+<app-settings-panel [open]="settingsOpen()" (closed)="onToggleSettings()" />
