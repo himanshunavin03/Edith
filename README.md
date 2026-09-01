@@ -372,6 +372,18 @@ offline shell — nothing more.
 - **Audio routing to Bluetooth is entirely iOS's decision.** The app cannot
   force output to a specific device; it can only play through the standard
   audio element/SpeechSynthesis and let iOS route it.
+- **Browser `SpeechSynthesis` frequently fails to route to a connected
+  Bluetooth device on iOS/iPadOS Safari at all** — confirmed on real
+  Bluetooth glasses hardware: EDITH's spoken reply was silent over
+  Bluetooth using the browser voice, while switching Settings → Voice
+  output to "OpenAI speech" (which plays through a real `<audio>` element
+  instead of `SpeechSynthesis`) worked correctly and routed to the
+  Bluetooth device every time. This is why **EDITH defaults to OpenAI
+  speech**, not the browser voice, despite the browser voice being free
+  and offline-capable — reliability on Bluetooth mattered more for this
+  app's core use case. If you switch to "Browser speech" and it goes
+  silent with a Bluetooth device connected, that's this bug, not a new
+  issue — switch back to "OpenAI speech."
 
 ---
 
@@ -473,8 +485,9 @@ a rewrite:
 - Multi-turn conversation with pronoun/context resolution, bounded history
   sent to the model.
 - Streaming responses via SSE, rendered token-by-token in the UI.
-- Switchable TTS: browser `SpeechSynthesis` (default, offline-capable) or
-  OpenAI-generated speech, from Settings.
+- Switchable TTS: OpenAI-generated speech (default — reliably routes to
+  Bluetooth, see §10) or the browser's on-device `SpeechSynthesis`
+  (offline-capable, but see the Bluetooth caveat), from Settings.
 - Explicit mic-permission handling, denied/unsupported states, and
   guaranteed track cleanup after every recording.
 - PWA manifest + service worker + Add to Home Screen on iPhone.

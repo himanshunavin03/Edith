@@ -13,10 +13,19 @@
           [ngModel]="settingsService.settings().ttsProvider"
           (ngModelChange)="onProviderChange($event)"
         >
-          <option value="browser">Browser speech (on-device, works offline)</option>
-          <option value="openai">OpenAI speech (server-generated, needs network)</option>
+          <option value="openai">OpenAI speech (recommended — routes to Bluetooth reliably)</option>
+          <option value="browser">Browser speech (on-device, offline, but often silent over Bluetooth on iOS)</option>
         </select>
       </section>
+      @if (settingsService.settings().ttsProvider === 'browser') {
+        <p class="hint warn">
+          Heads up: iOS Safari's on-device speech frequently fails to route
+          to a connected Bluetooth headset/glasses at all (a Safari
+          limitation, confirmed on real hardware) — it may just be silent
+          with a Bluetooth device connected. If that happens, switch back to
+          "OpenAI speech" above.
+        </p>
+      }
 
       @if (settingsService.settings().ttsProvider === 'browser' && audio.voices().length > 0) {
         <section>

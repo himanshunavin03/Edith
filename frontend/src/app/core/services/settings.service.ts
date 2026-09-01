@@ -4,7 +4,12 @@ import type { EdithSettings } from '../models/voice.model';
 const STORAGE_KEY = 'edith.settings.v1';
 
 const DEFAULT_SETTINGS: EdithSettings = {
-  ttsProvider: 'browser',
+  // Default to OpenAI speech, not the browser's SpeechSynthesis: on iOS/
+  // iPadOS Safari, SpeechSynthesis output frequently fails to route to a
+  // connected Bluetooth device at all (confirmed on-device with Bluetooth
+  // glasses/headset), while a real <audio> element (what OpenAI speech
+  // plays through) routes correctly. See README "iOS / Safari limitations".
+  ttsProvider: 'openai',
   ttsVoiceURI: null,
   ttsRate: 1,
   wakeWordEnabled: false,
