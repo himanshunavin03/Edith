@@ -91,3 +91,30 @@ input[type='range'] {
   color: #6f7fa8;
   line-height: 1.4;
 }
+
+.hint.warn {
+  color: #d9a45f;
+}
+
+.hint code {
+  background: #1a2236;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #232c47;
+  margin: 20px 0;
+}
+
+input[type='password'] {
+  width: 100%;
+  background: #161d2e;
+  color: #e6ecff;
+  border: 1px solid #2a3450;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}

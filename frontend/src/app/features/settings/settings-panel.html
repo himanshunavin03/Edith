@@ -95,6 +95,30 @@
       <p class="hint">
         "Hi Edith" always replies instantly and works offline — it never calls the AI backend.
       </p>
+
+      <hr class="divider" />
+
+      <section>
+        <label class="field-label" for="api-key">Your OpenAI API key (optional — no server needed)</label>
+        <input
+          id="api-key"
+          type="password"
+          autocomplete="off"
+          placeholder="sk-..."
+          [ngModel]="settingsService.settings().openaiApiKey"
+          (ngModelChange)="onApiKeyChange($event)"
+        />
+      </section>
+      <p class="hint warn">
+        Leave blank to use the EDITH backend (recommended — keeps your key off
+        this device). If you set a key here instead, EDITH calls OpenAI
+        <strong>directly from this browser</strong> and needs no backend server
+        at all — useful for a plain static-site deployment. The key is stored
+        only in this browser's local storage and is sent only to
+        <code>api.openai.com</code>. Anyone with access to this browser/device
+        can read it, so only do this on your own personal device, and never
+        share this browser's storage or a screen recording that shows it.
+      </p>
     </div>
   </div>
 }

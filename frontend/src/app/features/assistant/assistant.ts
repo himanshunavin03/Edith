@@ -251,7 +251,12 @@ export class Assistant {
     this.voice.setStatus('speaking');
     const s = this.settings.settings();
     try {
-      await this.audio.speak(text, { provider: s.ttsProvider, voiceURI: s.ttsVoiceURI, rate: s.ttsRate });
+      await this.audio.speak(text, {
+        provider: s.ttsProvider,
+        voiceURI: s.ttsVoiceURI,
+        rate: s.ttsRate,
+        apiKey: s.openaiApiKey,
+      });
       this.voice.reset();
     } catch (err) {
       this.voice.setError(this.describeError(err, 'Speech playback failed.'));

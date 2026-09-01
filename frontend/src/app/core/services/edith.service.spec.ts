@@ -1,6 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { EdithService } from './edith.service';
+import { SettingsService } from './settings.service';
+import { OpenAiDirectService } from './openai-direct.service';
 
 describe('EdithService.handleLocalCommand', () => {
   let service: EdithService;
@@ -37,5 +39,48 @@ describe('EdithService.handleLocalCommand', () => {
   it('does not falsely match a phrase that merely contains "edith"', () => {
     const result = service.handleLocalCommand('Edith, what is the weather tomorrow?');
     expect(result.handled).toBe(false);
+  });
+});
+
+describe('EdithService direct-vs-backend routing', () => {
+  let service: EdithService;
+  let settings: SettingsService;
+  let direct: OpenAiDirectService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient()] });
+    service = TestBed.inject(EdithService);
+    settings = TestBed.inject(SettingsService);
+    direct = TestBed.inject(OpenAiDirectService);
+  });
+
+  it('calls OpenAiDirectService when a personal API key is set in Settings', async () => {
+    settings.update({ openaiApiKey: 'sk-personal-test-key' });
+    const spy = vi.spyOn(direct, 'chat').mockResolvedValue({ reply: 'Jupiter.', model: 'gpt-4o-mini' });
+
+    const result = await service.chat('What is the biggest planet?', []);
+
+    expect(spy).toHaveBeenCalledWith('What is the biggest planet?', [], 'sk-personal-test-key');
+    expect(result.reply).toBe('Jupiter.');
+  });
+
+  it('does not call OpenAiDirectService when no key is set (falls back to the backend)', async () => {
+    settings.update({ openaiApiKey: null });
+    const spy = vi.spyOn(direct, 'chat');
+
+    // The backend call itself will fail in this unit test (no server running),
+    // which is fine - we only need to confirm the direct path was NOT taken.
+    await service.chat('hello', []).catch(() => undefined);
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('treats a whitespace-only key the same as no key', async () => {
+    settings.update({ openaiApiKey: '   ' });
+    const spy = vi.spyOn(direct, 'chat');
+
+    await service.chat('hello', []).catch(() => undefined);
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });

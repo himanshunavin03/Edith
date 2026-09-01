@@ -30,4 +30,20 @@ export interface EdithSettings {
    * explicit, always-reliable tap-to-talk loop.
    */
   continuousMode: boolean;
+  /**
+   * Optional personal OpenAI API key, entered by the user in Settings and
+   * persisted only in this browser's localStorage (see SettingsService).
+   * When set, EdithService/AudioService call OpenAI directly from the
+   * browser (OpenAiDirectService) instead of going through the EDITH
+   * backend - this is what lets EDITH run as a plain static site with no
+   * server at all. Left null, the app falls back to the backend as usual.
+   *
+   * This is NOT the same risk as embedding a key in the shipped app: it is
+   * the user's own key, typed into their own browser, sent only from that
+   * browser straight to OpenAI, and never bundled into code served to
+   * anyone else. It IS visible to anyone with access to that browser/device
+   * (localStorage, network tab), so it should only be used on a personal
+   * device for personal use - see the in-app Settings hint and README.
+   */
+  openaiApiKey: string | null;
 }

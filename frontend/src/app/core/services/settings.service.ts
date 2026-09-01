@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS: EdithSettings = {
   wakeWordEnabled: false,
   streamingEnabled: true,
   continuousMode: false,
+  openaiApiKey: null,
 };
 
 /** Persists lightweight user preferences in localStorage. */

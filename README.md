@@ -297,6 +297,36 @@ If you'd rather click through the UI instead of using `render.yaml`:
 - Render's free plan spins the service down after inactivity; the first
   request after idling will be slow (cold start) while it spins back up.
 
+### Alternative: zero-server deployment (Static Site + your own API key)
+
+If you'd rather not run a backend at all — e.g. Render's free Web Service
+tier requires card verification on your account and you want to avoid
+that — EDITH can also run as a **plain static site with no server**:
+
+1. Deploy `frontend/` alone as a Render **Static Site**:
+   - **Root Directory:** `frontend`
+   - **Build Command:** `npm install && npm run build`
+   - **Publish Directory:** `dist/frontend/browser`
+2. Open the deployed site, tap **⚙ Settings**, and paste your own OpenAI
+   API key into **"Your OpenAI API key"**.
+
+With a key set there, `EdithService`/`AudioService` route every OpenAI call
+(`OpenAiDirectService`) straight from the browser to `api.openai.com` —
+no backend involved. Leave the field blank and the app falls back to the
+backend as normal, so nothing about the default (recommended) setup
+changes.
+
+**Read before using this mode:** the key is stored only in that browser's
+`localStorage` and is visible to anyone with access to that browser/device
+(dev tools, network tab). This is fundamentally different from — and does
+**not** reintroduce — the risk of shipping a key inside the app's own code:
+it's a key *you* typed into *your own* browser, for *your own* use, never
+bundled into anything served to other visitors. Only use it on a personal
+device you trust, with a key you're comfortable being visible there, and
+never share that browser's storage or a screen recording that shows it.
+Prefer the backend-backed deployment above whenever you can — it's the
+only mode where the key never touches a browser at all.
+
 ---
 
 ## 9. PWA / Add to Home Screen
@@ -350,6 +380,16 @@ offline shell — nothing more.
 - `OPENAI_API_KEY` lives only in `backend/.env` and is never sent to, or
   logged by, the frontend. The Angular app only ever calls the EDITH
   backend's own `/api/*` routes.
+  - **Exception, opt-in only:** if a user pastes their own key into
+    Settings ("Your OpenAI API key"), the app calls OpenAI directly from
+    that browser instead (`OpenAiDirectService`) so it can run with no
+    backend at all. That key is stored only in that browser's
+    `localStorage` and is never part of the app's shipped code — it's not
+    the same risk as embedding a key in the bundle, but it is visible to
+    anyone with access to that browser/device. See §8 "Alternative:
+    zero-server deployment" for the full tradeoff. This field is blank by
+    default and the app works exactly as described above until a user
+    fills it in themselves.
 - `.env` is git-ignored in both `backend/` and the repo root; `.env.example`
   documents required variables without values.
 - The backend validates all input with zod (`middleware/validate.ts`),

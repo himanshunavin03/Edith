@@ -1,6 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { environment } from '../environments/environment';
+import { SettingsService } from './settings.service';
+import { OpenAiDirectService } from './openai-direct.service';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -26,13 +28,27 @@ const GREETING_PHRASES = new Set(['hi edith', 'hey edith', 'hello edith']);
  *    no AI call, no token cost), designed so more local commands can be
  *    added to handleLocalCommand later.
  *  - talking to the EDITH backend for everything else (non-streaming and
- *    streaming chat completions). The OpenAI API key never touches the
- *    browser — only backend URLs are called from here.
+ *    streaming chat completions, transcription). The OpenAI API key never
+ *    touches the browser in this mode — only backend URLs are called.
+ *  - OPTIONALLY, if the user has entered their own key in Settings
+ *    (SettingsService.settings().openaiApiKey), calling OpenAI directly
+ *    from the browser instead (OpenAiDirectService), so EDITH can run
+ *    with no backend at all (e.g. as a plain static site). This is the
+ *    exception to "the key never touches the browser" - see
+ *    OpenAiDirectService's doc comment for why that's an accepted
+ *    per-user tradeoff here, not the default.
  */
 @Injectable({ providedIn: 'root' })
 export class EdithService {
   private readonly http = inject(HttpClient);
+  private readonly settings = inject(SettingsService);
+  private readonly direct = inject(OpenAiDirectService);
   private readonly baseUrl = environment.apiBaseUrl;
+
+  private get directApiKey(): string | null {
+    const key = this.settings.settings().openaiApiKey;
+    return key && key.trim() ? key.trim() : null;
+  }
 
   /** Normalizes a raw transcript for matching against local commands. */
   private normalize(transcript: string): string {
@@ -61,6 +77,9 @@ export class EdithService {
 
   /** Non-streaming chat call. */
   async chat(message: string, history: ChatMessage[]): Promise<ChatResponse> {
+    const apiKey = this.directApiKey;
+    if (apiKey) return this.direct.chat(message, history, apiKey);
+
     return await new Promise<ChatResponse>((resolve, reject) => {
       this.http.post<ChatResponse>(`${this.baseUrl}/chat`, { message, history }).subscribe({
         next: resolve,
@@ -75,6 +94,12 @@ export class EdithService {
    * they arrive so the UI can render the answer incrementally.
    */
   async *chatStream(message: string, history: ChatMessage[], signal?: AbortSignal): AsyncGenerator<string> {
+    const apiKey = this.directApiKey;
+    if (apiKey) {
+      yield* this.direct.chatStream(message, history, apiKey, signal);
+      return;
+    }
+
     const response = await fetch(`${this.baseUrl}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -115,6 +140,9 @@ export class EdithService {
 
   /** Uploads a recorded audio clip and returns its transcription. */
   async transcribe(blob: Blob): Promise<string> {
+    const apiKey = this.directApiKey;
+    if (apiKey) return this.direct.transcribe(blob, apiKey);
+
     const response = await fetch(`${this.baseUrl}/transcribe`, {
       method: 'POST',
       headers: { 'Content-Type': blob.type || 'audio/webm' },

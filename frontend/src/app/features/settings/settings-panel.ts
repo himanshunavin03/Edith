@@ -42,6 +42,11 @@ export class SettingsPanel {
     this.settingsService.update({ wakeWordEnabled: enabled });
   }
 
+  protected onApiKeyChange(value: string): void {
+    const trimmed = value.trim();
+    this.settingsService.update({ openaiApiKey: trimmed ? trimmed : null });
+  }
+
   protected close(): void {
     this.closed.emit();
   }

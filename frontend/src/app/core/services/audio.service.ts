@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { environment } from '../environments/environment';
+import { OpenAiDirectService } from './openai-direct.service';
 import type { TtsProvider } from '../models/voice.model';
 
 /**
@@ -14,6 +15,8 @@ import type { TtsProvider } from '../models/voice.model';
  */
 @Injectable({ providedIn: 'root' })
 export class AudioService {
+  private readonly direct = inject(OpenAiDirectService);
+
   readonly speaking = signal(false);
   readonly ttsSupported = signal(this.detectSpeechSynthesis());
   readonly voices = signal<SpeechSynthesisVoice[]>([]);
@@ -39,13 +42,15 @@ export class AudioService {
    */
   async speak(
     text: string,
-    opts: { provider: TtsProvider; voiceURI?: string | null; rate?: number } = { provider: 'browser' },
+    opts: { provider: TtsProvider; voiceURI?: string | null; rate?: number; apiKey?: string | null } = {
+      provider: 'browser',
+    },
   ): Promise<void> {
     this.stop();
     if (!text.trim()) return;
 
     if (opts.provider === 'openai') {
-      return this.speakViaOpenAI(text);
+      return this.speakViaOpenAI(text, opts.apiKey ?? null);
     }
     return this.speakViaBrowser(text, opts.voiceURI ?? null, opts.rate ?? 1);
   }
@@ -76,16 +81,8 @@ export class AudioService {
     });
   }
 
-  private async speakViaOpenAI(text: string): Promise<void> {
-    const response = await fetch(`${environment.apiBaseUrl}/tts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-    if (!response.ok) {
-      throw new Error(`Server speech synthesis failed (${response.status})`);
-    }
-    const blob = await response.blob();
+  private async speakViaOpenAI(text: string, apiKey: string | null): Promise<void> {
+    const blob = apiKey ? await this.direct.textToSpeech(text, apiKey) : await this.fetchBackendSpeech(text);
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     this.currentAudioEl = audio;
@@ -104,6 +101,18 @@ export class AudioService {
       };
       audio.play().catch(reject);
     });
+  }
+
+  private async fetchBackendSpeech(text: string): Promise<Blob> {
+    const response = await fetch(`${environment.apiBaseUrl}/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!response.ok) {
+      throw new Error(`Server speech synthesis failed (${response.status})`);
+    }
+    return response.blob();
   }
 
   /** Stops any in-progress speech immediately (used by the Stop button). */
